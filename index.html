@@ -24,28 +24,49 @@
     <h3>2. Configure System Layout</h3>
     
     <div class="box">
-        <label><b>Event 1 Title (Max 16 chars):</b></label>
+        <label><b>Event 1 Title:</b></label>
         <input type="text" id="name0" value="Hair Cut" maxlength="16" oninput="sanitizeInput(this)">
         <label>Icon Style:</label>
-        <select id="icon0"><option value="0">Scissors</option><option value="1">Gas Pump</option><option value="2">Suitcase</option></select>
+        <select id="icon0">
+            <option value="0">Scissors</option>
+            <option value="1">Airplane</option>
+            <option value="2">Barbell</option>
+            <option value="3">Dollar Sign</option>
+            <option value="4">Broom</option>
+            <option value="5">Grocery Bag</option>
+        </select>
         <label>Override Date (Optional):</label>
         <input type="date" id="date0">
     </div>
 
     <div class="box">
-        <label><b>Event 2 Title (Max 16 chars):</b></label>
-        <input type="text" id="name1" value="Add Gas" maxlength="16" oninput="sanitizeInput(this)">
+        <label><b>Event 2 Title:</b></label>
+        <input type="text" id="name1" value="Travel" maxlength="16" oninput="sanitizeInput(this)">
         <label>Icon Style:</label>
-        <select id="icon1"><option value="0">Scissors</option><option value="1">Gas Pump</option><option value="2">Suitcase</option></select>
+        <select id="icon1">
+            <option value="0">Scissors</option>
+            <option value="1">Airplane</option>
+            <option value="2">Barbell</option>
+            <option value="3">Dollar Sign</option>
+            <option value="4">Broom</option>
+            <option value="5">Grocery Bag</option>
+        </select>
         <label>Override Date (Optional):</label>
         <input type="date" id="date1">
     </div>
 
     <div class="box">
-        <label><b>Event 3 Title (Max 16 chars):</b></label>
-        <input type="text" id="name2" value="Travel" maxlength="16" oninput="sanitizeInput(this)">
+        <label><b>Event 3 Title:</b></label>
+        <input type="text" id="name2" value="Gym Streak" maxlength="16" oninput="sanitizeInput(this)">
         <label>Icon Style:</label>
-        <select id="icon2"><option value="0">Scissors</option><option value="1">Gas Pump</option><option value="2">Suitcase</option></select>
+        <select id="icon2">
+            <option value="0">Scissors</option>
+            <option value="1">Airplane</option>
+            <option value="2">Barbell</option>
+            <option value="3">Dollar Sign</option>
+            <option value="4">Broom</option>
+            <option value="5">Grocery Bag</option>
+        </select>
         <label>Override Date (Optional):</label>
         <input type="date" id="date2">
     </div>
@@ -56,12 +77,11 @@
 
 <script>
 const SERVICE_UUID = "4fa4c201-1fb5-459e-8fcc-c5c9c331914b";
-const CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8"; // FIXED: Added missing equals sign
 
 let device = null;
 let txChar = null;
 
-// CRASH SHIELD SANITIZATION: Instantly strip out dangerous commas as user types
 function sanitizeInput(inputElement) {
     inputElement.value = inputElement.value.replace(/,/g, "");
 }
@@ -107,7 +127,6 @@ async function syncAllData() {
                 resetTargetTimestamp = Math.floor(d.getTime() / 1000);
             }
 
-            // Clean CSV packet construction
             let csvPacket = `${i},${name},${icon},${resetTargetTimestamp},${nowInSeconds}`;
             await txChar.writeValue(encoder.encode(csvPacket));
             await new Promise(r => setTimeout(r, 250));
