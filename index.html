@@ -2,80 +2,133 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tracker Controller</title>
+    <title>Control Panel</title>
     <style>
-        body { font-family: -apple-system, sans-serif; text-align: center; padding: 40px; background: #f4f4f9; }
-        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
-        button { background: #007aff; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; font-size: 16px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
-        .status { color: #666; font-size: 14px; margin-top: 10px; }
+        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f4f4f9; max-width: 500px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .box { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 12px; padding: 15px; margin-top: 15px; }
+        button { background: #007aff; color: white; border: none; padding: 15px; font-size: 18px; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; }
+        input, select { width: 100%; padding: 12px; font-size: 16px; margin: 8px 0 15px 0; border: 1px solid #ced4da; border-radius: 8px; box-sizing: border-box; }
+        .status-bar { padding: 12px; border-radius: 10px; margin-bottom: 15px; font-weight: bold; background: #e2e3e5; color: #383d41; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>Update Your Tracker</h2>
-    <p>Change the active event name on your screen instantly.</p>
+    <h2>Tracker Control Hub</h2>
+    <div id="status" class="status-bar">Status: Disconnected</div>
+    <button id="connectBtn" onclick="connectDevice()">1. CONNECT TO TRACKER</button>
+</div>
+
+<div id="configs" class="card" style="opacity: 0.5; pointer-events: none;">
+    <h3>2. Configure System Layout</h3>
     
-    <button onclick="connectAndWrite()">1. CONNECT TRACKER</button>
+    <div class="box">
+        <label><b>Event 1 Title:</b></label>
+        <input type="text" id="name0" value="Hair Cut">
+        <label>Icon Style:</label>
+        <select id="icon0"><option value="0">Scissors</option><option value="1">Gas Pump</option><option value="2">Suitcase</option></select>
+        <label>Override Date (Optional):</label>
+        <input type="date" id="date0">
+    </div>
+
+    <div class="box">
+        <label><b>Event 2 Title:</b></label>
+        <input type="text" id="name1" value="Add Gas">
+        <label>Icon Style:</label>
+        <select id="icon1"><option value="0">Scissors</option><option value="1">Gas Pump</option><option value="2">Suitcase</option></select>
+        <label>Override Date (Optional):</label>
+        <input type="date" id="date1">
+    </div>
+
+    <div class="box">
+        <label><b>Event 3 Title:</b></label>
+        <input type="text" id="name2" value="Travel">
+        <label>Icon Style:</label>
+        <select id="icon2"><option value="0">Scissors</option><option value="1">Gas Pump</option><option value="2">Suitcase</option></select>
+        <label>Override Date (Optional):</label>
+        <input type="date" id="date2">
+    </div>
     
-    <label style="display:block; text-align:left; margin-bottom:5px; font-weight:bold;">New Event Name:</label>
-    <input type="text" id="eventNameInput" value="Dentist">
-    
-    <button onclick="sendData()" style="background: #34c759;">2. SEND NEW NAME</button>
-    <div id="statusLog" class="status">Status: Disconnected</div>
+    <br>
+    <button onclick="syncAllData()" style="background: #28a745;">3. SYNC ALL TO DEVICE</button>
 </div>
 
 <script>
 const SERVICE_UUID = "4fa4c201-1fb5-459e-8fcc-c5c9c331914b";
 const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
-let bluetoothDevice = null; // Made global to handle disconnection
-let activeCharacteristic = null;
+let device = null;
+let txChar = null;
 
-async function connectAndWrite() {
-    document.getElementById('statusLog').innerText = "Status: Searching for device...";
+async function connectDevice() {
+    updateStatus("Searching...", "#ffc107", "black");
     try {
-        bluetoothDevice = await navigator.bluetooth.requestDevice({
+        device = await navigator.bluetooth.requestDevice({
             filters: [{ name: 'E-Ink Tracker BLE' }],
             optionalServices: [SERVICE_UUID]
         });
         
-        document.getElementById('statusLog').innerText = "Status: Connecting...";
-        const server = await bluetoothDevice.gatt.connect();
+        updateStatus("Connecting gatt server...", "#ffc107", "black");
+        const server = await device.gatt.connect();
         const service = await server.getPrimaryService(SERVICE_UUID);
-        activeCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+        txChar = await service.getCharacteristic(CHARACTERISTIC_UUID);
         
-        document.getElementById('statusLog').innerText = "Status: CONNECTED!";
-    } catch (error) {
-        document.getElementById('statusLog').innerText = "Error: " + error;
+        updateStatus("Connected & Synchronized!", "#28a745", "white");
+        document.getElementById('configs').style.opacity = "1";
+        document.getElementById('configs').style.pointerEvents = "auto";
+    } catch (e) {
+        updateStatus("Connection Aborted: " + e.message, "#dc3545", "white");
     }
 }
 
-async function sendData() {
-    if (!activeCharacteristic) {
-        alert("Please connect the tracker first!");
-        return;
-    }
-    const text = document.getElementById('eventNameInput').value;
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
+async function syncAllData() {
+    if (!txChar) return alert("Device connection offline.");
     
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    const encoder = new TextEncoder();
+
     try {
-        document.getElementById('statusLog').innerText = "Status: Sending data...";
-        await activeCharacteristic.writeValue(data);
-        document.getElementById('statusLog').innerText = "Status: Sent! Disconnecting...";
-        
-        // FIX: Automatically hang up the Bluetooth call to free up the tracker!
-        if (bluetoothDevice && bluetoothDevice.gatt.connected) {
-            await bluetoothDevice.gatt.disconnect();
+        // Sequentially execute and process writes for all three structural nodes
+        for (let i = 0; i < 3; i++) {
+            updateStatus(`Syncing Event ${i+1}...`, "#17a2b8", "white");
+
+            let name = document.getElementById(`name${i}`).value || "Tracker Block";
+            let icon = document.getElementById(`icon${i}`).value;
+            let dateVal = document.getElementById(`date${i}`).value;
+
+            // Resolve explicit target timestamp or snap directly to real current phone time if unassigned
+            let resetTargetTimestamp = nowInSeconds;
+            if (dateVal) {
+                let d = new Date(dateVal + "T12:00:00"); // Standardize noon zone calculations
+                resetTargetTimestamp = Math.floor(d.getTime() / 1000);
+            }
+
+            // Frame uniform CSV structure matching custom parser syntax
+            let csvPacket = `${i},${name},${icon},${resetTargetTimestamp},${nowInSeconds}`;
+            await txChar.writeValue(encoder.encode(csvPacket));
+            
+            // Artificial delay cushion preventing transmission line clogging
+            await new Promise(r => setTimeout(r, 250));
         }
-        document.getElementById('statusLog').innerText = "Status: Updated & Disconnected successfully!";
-    } catch (error) {
-        document.getElementById('statusLog').innerText = "Error sending: " + error;
+
+        updateStatus("All Configs Synced! Disconnecting...", "#28a745", "white");
+        await new Promise(r => setTimeout(r, 800));
+        await device.gatt.disconnect();
+        updateStatus("Update complete. Radio sleeping.", "#6c757d", "white");
+        document.getElementById('configs').style.opacity = "0.5";
+        document.getElementById('configs').style.pointerEvents = "none";
+    } catch(err) {
+        updateStatus("Transfer Interrupted: " + err.message, "#dc3545", "white");
     }
+}
+
+function updateStatus(txt, bg, col) {
+    let el = document.getElementById("status");
+    el.innerText = "Status: " + txt;
+    el.style.backgroundColor = bg;
+    el.style.color = col;
 }
 </script>
-
 </body>
 </html>
