@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tracker Controller</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; text-align: center; padding: 40px; background: #f4f4f9; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+        button { background: #007aff; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; font-size: 16px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+        .status { color: #666; font-size: 14px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Update Your Tracker</h2>
+    <p>Change the active event name on your screen instantly.</p>
+    
+    <button onclick="connectAndWrite()">1. CONNECT TRACKER</button>
+    
+    <label style="display:block; text-align:left; margin-bottom:5px; font-weight:bold;">New Event Name:</label>
+    <input type="text" id="eventNameInput" value="Dentist">
+    
+    <button onclick="sendData()" style="background: #34c759;">2. SEND NEW NAME</button>
+    <div id="statusLog" class="status">Status: Disconnected</div>
+</div>
+
+<script>
+// These match your ESP32 code exactly!
+const SERVICE_UUID = "4fa4c201-1fb5-459e-8fcc-c5c9c331914b";
+const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
+let activeCharacteristic = null;
+
+async function connectAndWrite() {
+    document.getElementById('statusLog').innerText = "Status: Searching for device...";
+    try {
+        // Request the Bluetooth device
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ name: 'E-Ink Tracker BLE' }],
+            optionalServices: [SERVICE_UUID]
+        });
+        
+        document.getElementById('statusLog').innerText = "Status: Connecting to device...";
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        activeCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+        
+        document.getElementById('statusLog').innerText = "Status: CONNECTED! Ready to send.";
+    } catch (error) {
+        document.getElementById('statusLog').innerText = "Error: " + error;
+    }
+}
+
+async function sendData() {
+    if (!activeCharacteristic) {
+        alert("Please connect the tracker first!");
+        return;
+    }
+    const text = document.getElementById('eventNameInput').value;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    
+    try {
+        await activeCharacteristic.writeValue(data);
+        document.getElementById('statusLog').innerText = "Status: Sent '" + text + "' successfully!";
+    } catch (error) {
+        document.getElementById('statusLog').innerText = "Error sending: " + error;
+    }
+}
+</script>
+
+</body>
+</html>
