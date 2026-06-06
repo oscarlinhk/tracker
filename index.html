@@ -24,8 +24,8 @@
     <h3>2. Configure System Layout</h3>
     
     <div class="box">
-        <label><b>Event 1 Title:</b></label>
-        <input type="text" id="name0" value="Hair Cut">
+        <label><b>Event 1 Title (Max 16 chars):</b></label>
+        <input type="text" id="name0" value="Hair Cut" maxlength="16" oninput="sanitizeInput(this)">
         <label>Icon Style:</label>
         <select id="icon0"><option value="0">Scissors</option><option value="1">Gas Pump</option><option value="2">Suitcase</option></select>
         <label>Override Date (Optional):</label>
@@ -33,8 +33,8 @@
     </div>
 
     <div class="box">
-        <label><b>Event 2 Title:</b></label>
-        <input type="text" id="name1" value="Add Gas">
+        <label><b>Event 2 Title (Max 16 chars):</b></label>
+        <input type="text" id="name1" value="Add Gas" maxlength="16" oninput="sanitizeInput(this)">
         <label>Icon Style:</label>
         <select id="icon1"><option value="0">Scissors</option><option value="1">Gas Pump</option><option value="2">Suitcase</option></select>
         <label>Override Date (Optional):</label>
@@ -42,8 +42,8 @@
     </div>
 
     <div class="box">
-        <label><b>Event 3 Title:</b></label>
-        <input type="text" id="name2" value="Travel">
+        <label><b>Event 3 Title (Max 16 chars):</b></label>
+        <input type="text" id="name2" value="Travel" maxlength="16" oninput="sanitizeInput(this)">
         <label>Icon Style:</label>
         <select id="icon2"><option value="0">Scissors</option><option value="1">Gas Pump</option><option value="2">Suitcase</option></select>
         <label>Override Date (Optional):</label>
@@ -56,10 +56,15 @@
 
 <script>
 const SERVICE_UUID = "4fa4c201-1fb5-459e-8fcc-c5c9c331914b";
-const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
 let device = null;
 let txChar = null;
+
+// CRASH SHIELD SANITIZATION: Instantly strip out dangerous commas as user types
+function sanitizeInput(inputElement) {
+    inputElement.value = inputElement.value.replace(/,/g, "");
+}
 
 async function connectDevice() {
     updateStatus("Searching...", "#ffc107", "black");
@@ -69,7 +74,7 @@ async function connectDevice() {
             optionalServices: [SERVICE_UUID]
         });
         
-        updateStatus("Connecting gatt server...", "#ffc107", "black");
+        updateStatus("Connecting server...", "#ffc107", "black");
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService(SERVICE_UUID);
         txChar = await service.getCharacteristic(CHARACTERISTIC_UUID);
@@ -78,7 +83,7 @@ async function connectDevice() {
         document.getElementById('configs').style.opacity = "1";
         document.getElementById('configs').style.pointerEvents = "auto";
     } catch (e) {
-        updateStatus("Connection Aborted: " + e.message, "#dc3545", "white");
+        updateStatus("Connection Failure: " + e.message, "#dc3545", "white");
     }
 }
 
@@ -89,33 +94,29 @@ async function syncAllData() {
     const encoder = new TextEncoder();
 
     try {
-        // Sequentially execute and process writes for all three structural nodes
         for (let i = 0; i < 3; i++) {
             updateStatus(`Syncing Event ${i+1}...`, "#17a2b8", "white");
 
-            let name = document.getElementById(`name${i}`).value || "Tracker Block";
+            let name = document.getElementById(`name${i}`).value || "No Name";
             let icon = document.getElementById(`icon${i}`).value;
             let dateVal = document.getElementById(`date${i}`).value;
 
-            // Resolve explicit target timestamp or snap directly to real current phone time if unassigned
             let resetTargetTimestamp = nowInSeconds;
             if (dateVal) {
-                let d = new Date(dateVal + "T12:00:00"); // Standardize noon zone calculations
+                let d = new Date(dateVal + "T12:00:00"); 
                 resetTargetTimestamp = Math.floor(d.getTime() / 1000);
             }
 
-            // Frame uniform CSV structure matching custom parser syntax
+            // Clean CSV packet construction
             let csvPacket = `${i},${name},${icon},${resetTargetTimestamp},${nowInSeconds}`;
             await txChar.writeValue(encoder.encode(csvPacket));
-            
-            // Artificial delay cushion preventing transmission line clogging
             await new Promise(r => setTimeout(r, 250));
         }
 
-        updateStatus("All Configs Synced! Disconnecting...", "#28a745", "white");
-        await new Promise(r => setTimeout(r, 800));
+        updateStatus("Sync Completed successfully!", "#28a745", "white");
+        await new Promise(r => setTimeout(r, 500));
         await device.gatt.disconnect();
-        updateStatus("Update complete. Radio sleeping.", "#6c757d", "white");
+        updateStatus("Disconnected safely.", "#6c757d", "white");
         document.getElementById('configs').style.opacity = "0.5";
         document.getElementById('configs').style.pointerEvents = "none";
     } catch(err) {
