@@ -27,27 +27,26 @@
 </div>
 
 <script>
-// These match your ESP32 code exactly!
 const SERVICE_UUID = "4fa4c201-1fb5-459e-8fcc-c5c9c331914b";
 const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
+let bluetoothDevice = null; // Made global to handle disconnection
 let activeCharacteristic = null;
 
 async function connectAndWrite() {
     document.getElementById('statusLog').innerText = "Status: Searching for device...";
     try {
-        // Request the Bluetooth device
-        const device = await navigator.bluetooth.requestDevice({
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
             filters: [{ name: 'E-Ink Tracker BLE' }],
             optionalServices: [SERVICE_UUID]
         });
         
-        document.getElementById('statusLog').innerText = "Status: Connecting to device...";
-        const server = await device.gatt.connect();
+        document.getElementById('statusLog').innerText = "Status: Connecting...";
+        const server = await bluetoothDevice.gatt.connect();
         const service = await server.getPrimaryService(SERVICE_UUID);
         activeCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
         
-        document.getElementById('statusLog').innerText = "Status: CONNECTED! Ready to send.";
+        document.getElementById('statusLog').innerText = "Status: CONNECTED!";
     } catch (error) {
         document.getElementById('statusLog').innerText = "Error: " + error;
     }
@@ -63,8 +62,15 @@ async function sendData() {
     const data = encoder.encode(text);
     
     try {
+        document.getElementById('statusLog').innerText = "Status: Sending data...";
         await activeCharacteristic.writeValue(data);
-        document.getElementById('statusLog').innerText = "Status: Sent '" + text + "' successfully!";
+        document.getElementById('statusLog').innerText = "Status: Sent! Disconnecting...";
+        
+        // FIX: Automatically hang up the Bluetooth call to free up the tracker!
+        if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+            await bluetoothDevice.gatt.disconnect();
+        }
+        document.getElementById('statusLog').innerText = "Status: Updated & Disconnected successfully!";
     } catch (error) {
         document.getElementById('statusLog').innerText = "Error sending: " + error;
     }
